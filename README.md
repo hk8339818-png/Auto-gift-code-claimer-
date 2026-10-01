@@ -1,2 +1,5 @@
 # Auto-gift-code-claimer-
-A tool to manage multiple accounts and integrate web views for redeming gift codes simultaneously.
+This Python script, built with Kivy and Bulldozer, automates redeeming gift codes. It supports managing up to 50 accounts simultaneously across various third-party platforms. Features include:
+- Multi-account management
+- Integrated web views for code redemption
+- Parallel script execution for efficiency.
