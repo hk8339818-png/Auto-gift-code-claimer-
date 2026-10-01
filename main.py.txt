@@ -1,0 +1,286 @@
+import sys
+import os
+import threading
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
+from kivy.uix.spinner import Spinner
+from kivy.clock import Clock
+from kivy.graphics import Color, Rectangle
+from kivy.metrics import dp
+
+# Importing modules
+from modules.account_manager import AccountManager
+from modules.club_91 import Club91Claimer
+from modules.club_55 import Club55Claimer
+from modules.club_999 import Club999Claimer
+
+class ThemeBox(BoxLayout):
+    def __init__(self, bg_color, **kwargs):
+        super().__init__(**kwargs)
+        self.bg_color = bg_color
+        with self.canvas.before:
+            Color(*self.bg_color)
+            self.rect = Rectangle(size=self.size, pos=self.pos)
+        self.bind(size=self._update_rect, pos=self._update_rect)
+
+    def _update_rect(self, instance, value):
+        self.rect.pos = instance.pos
+        self.rect.size = instance.size
+
+class ClaimerApp(App):
+    def build(self):
+        self.title = "GiftCodeClaimer V2"
+        self.manager = AccountManager()
+        
+        # Claimer Instances
+        self.claimers = {
+            "91Club": Club91Claimer(),
+            "55Club": Club55Claimer(),
+            "999Club": Club999Claimer()
+        }
+
+        # Main Root Layout (Dark Blue Theme)
+        root = ThemeBox(bg_color=(0.04, 0.06, 0.12, 1), orientation='vertical', spacing=dp(10), padding=dp(12))
+
+        # Header Section
+        header = ThemeBox(bg_color=(0.08, 0.11, 0.22, 1), size_hint_y=None, height=dp(56), padding=dp(8))
+        header_label = Label(
+            text="[b][color=00A8FF]GiftCodeClaimer[/color] V2[/b]",
+            markup=True,
+            font_size=dp(20),
+            halign='left',
+            valign='middle'
+        )
+        header_label.bind(size=header_label.setter('text_size'))
+        header.add_widget(header_label)
+        root.add_widget(header)
+
+        # Upper Form Layout (Add Account & Claim Code)
+        form_scroll = ScrollView(size_hint_y=0.45)
+        form_layout = BoxLayout(orientation='vertical', spacing=dp(12), size_hint_y=None)
+        form_layout.bind(minimum_height=form_layout.setter('height'))
+
+        # Sub-section: Add Account
+        acc_box = ThemeBox(bg_color=(0.08, 0.11, 0.22, 1), orientation='vertical', spacing=dp(8), padding=dp(12), size_hint_y=None)
+        acc_box.bind(minimum_height=acc_box.setter('height'))
+        
+        acc_title = Label(text="[b]ADD NEW ACCOUNT[/b] (Max 50)", markup=True, size_hint_y=None, height=dp(24), halign='left')
+        acc_title.bind(size=acc_title.setter('text_size'))
+        acc_box.add_widget(acc_title)
+
+        inputs_grid = GridLayout(cols=2, spacing=dp(8), size_hint_y=None)
+        inputs_grid.bind(minimum_height=inputs_grid.setter('height'))
+
+        inputs_grid.add_widget(Label(text="Name:", size_hint_y=None, height=dp(36), halign='left'))
+        self.input_name = TextInput(hint_text="e.g. User1", multiline=False, size_hint_y=None, height=dp(36), background_color=(1,1,1,0.9))
+        inputs_grid.add_widget(self.input_name)
+
+        inputs_grid.add_widget(Label(text="Platform:", size_hint_y=None, height=dp(36), halign='left'))
+        self.spinner_platform = Spinner(text="91Club", values=("91Club", "55Club", "999Club"), size_hint_y=None, height=dp(36))
+        inputs_grid.add_widget(self.spinner_platform)
+
+        inputs_grid.add_widget(Label(text="Phone/Email:", size_hint_y=None, height=dp(36), halign='left'))
+        self.input_cred = TextInput(hint_text="e.g. 9876543210", multiline=False, size_hint_y=None, height=dp(36), background_color=(1,1,1,0.9))
+        inputs_grid.add_widget(self.input_cred)
+
+        inputs_grid.add_widget(Label(text="Auth Token:", size_hint_y=None, height=dp(36), halign='left'))
+        self.input_token = TextInput(hint_text="Paste authorization token", multiline=False, size_hint_y=None, height=dp(36), background_color=(1,1,1,0.9))
+        inputs_grid.add_widget(self.input_token)
+
+        acc_box.add_widget(inputs_grid)
+
+        btn_add = Button(text="Save Account", size_hint_y=None, height=dp(44), background_color=(0, 0.66, 1, 1))
+        btn_add.bind(on_release=self.add_account)
+        acc_box.add_widget(btn_add)
+        form_layout.add_widget(acc_box)
+
+        # Sub-section: Claim Form
+        claim_box = ThemeBox(bg_color=(0.08, 0.11, 0.22, 1), orientation='vertical', spacing=dp(8), padding=dp(12), size_hint_y=None)
+        claim_box.bind(minimum_height=claim_box.setter('height'))
+
+        claim_title = Label(text="[b]TRIGGER CLAIM AUTOMATION[/b]", markup=True, size_hint_y=None, height=dp(24), halign='left')
+        claim_title.bind(size=claim_title.setter('text_size'))
+        claim_box.add_widget(claim_title)
+
+        claim_grid = GridLayout(cols=2, spacing=dp(8), size_hint_y=None)
+        claim_grid.bind(minimum_height=claim_grid.setter('height'))
+
+        claim_grid.add_widget(Label(text="Gift Code:", size_hint_y=None, height=dp(36), halign='left'))
+        self.input_gift_code = TextInput(hint_text="Enter promo/gift code", multiline=False, size_hint_y=None, height=dp(36), background_color=(1,1,1,0.9))
+        claim_grid.add_widget(self.input_gift_code)
+
+        claim_grid.add_widget(Label(text="Target Platform:", size_hint_y=None, height=dp(36), halign='left'))
+        self.spinner_target = Spinner(text="91Club", values=("91Club", "55Club", "999Club"), size_hint_y=None, height=dp(36))
+        claim_grid.add_widget(self.spinner_target)
+
+        claim_box.add_widget(claim_grid)
+
+        btn_claim = Button(text="Run Claimer on All Accounts", size_hint_y=None, height=dp(44), background_color=(0.1, 0.7, 0.3, 1))
+        btn_claim.bind(on_release=self.start_claim_process)
+        claim_box.add_widget(btn_claim)
+
+        form_layout.add_widget(claim_box)
+        form_scroll.add_widget(form_layout)
+        root.add_widget(form_scroll)
+
+        # Bottom Area - Account List & Logs
+        list_log_box = BoxLayout(orientation='vertical', spacing=dp(8), size_hint_y=0.55)
+
+        # Account List Box
+        list_box = ThemeBox(bg_color=(0.08, 0.11, 0.22, 1), orientation='vertical', padding=dp(8))
+        list_title = Label(text="[b]SAVED ACCOUNTS[/b]", markup=True, size_hint_y=None, height=dp(20), halign='left')
+        list_title.bind(size=list_title.setter('text_size'))
+        list_box.add_widget(list_title)
+
+        self.account_container_scroll = ScrollView()
+        self.account_container = GridLayout(cols=1, spacing=dp(4), size_hint_y=None)
+        self.account_container.bind(minimum_height=self.account_container.setter('height'))
+        self.account_container_scroll.add_widget(self.account_container)
+        list_box.add_widget(self.account_container_scroll)
+        list_log_box.add_widget(list_box)
+
+        # Log Console Box
+        log_box = ThemeBox(bg_color=(0.02, 0.03, 0.07, 1), orientation='vertical', padding=dp(8))
+        log_title = Label(text="[color=00FF66]SYSTEM EXECUTION LOG[/color]", markup=True, size_hint_y=None, height=dp(20), halign='left')
+        log_title.bind(size=log_title.setter('text_size'))
+        log_box.add_widget(log_title)
+
+        self.log_scroll = ScrollView()
+        self.log_text = Label(
+            text="--- System initialized ---\nReady to process commands.\n",
+            markup=True,
+            font_name="Roboto",
+            font_size=dp(12),
+            size_hint_y=None,
+            halign='left',
+            valign='top'
+        )
+        self.log_text.bind(size=self._update_log_height)
+        self.log_scroll.add_widget(self.log_text)
+        log_box.add_widget(self.log_scroll)
+        list_log_box.add_widget(log_box)
+
+        root.add_widget(list_log_box)
+
+        # Initial loading of accounts to the list
+        self.populate_accounts()
+
+        return root
+
+    def _update_log_height(self, instance, value):
+        self.log_text.text_size = (instance.width, None)
+        # Ensure height updates to fit text correctly
+        self.log_text.height = max(self.log_text.texture_size[1], self.log_scroll.height)
+
+    def write_log(self, text, type_log="info"):
+        color_map = {
+            "info": "E8ECF5",
+            "success": "00FF66",
+            "error": "FF3B30",
+            "warning": "FFCC00"
+        }
+        color = color_map.get(type_log, "E8ECF5")
+        formatted_line = f"[color={color}]{text}[/color]\n"
+        
+        # UI updates inside main thread
+        def update_ui(dt):
+            self.log_text.text += formatted_line
+            # Auto scroll to bottom
+            self.log_scroll.scroll_y = 0
+
+        Clock.schedule_once(update_ui)
+
+    def populate_accounts(self):
+        self.account_container.clear_widgets()
+        accounts = self.manager.get_accounts()
+        
+        for idx, acc in enumerate(accounts):
+            row = BoxLayout(size_hint_y=None, height=dp(40), spacing=dp(8))
+            label_text = f"{acc['name']} ({acc['platform']}) - {acc['credential']}"
+            acc_label = Label(text=label_text, halign='left', valign='middle')
+            acc_label.bind(size=acc_label.setter('text_size'))
+            row.add_widget(acc_label)
+            
+            # Delete Button
+            del_btn = Button(text="Remove", size_hint_x=None, width=dp(70), background_color=(0.8, 0.2, 0.2, 1))
+            del_btn.bind(on_release=lambda btn, i=idx: self.delete_account(i))
+            row.add_widget(del_btn)
+            
+            self.account_container.add_widget(row)
+
+    def add_account(self, instance):
+        name = self.input_name.text.strip()
+        platform = self.spinner_platform.text
+        cred = self.input_cred.text.strip()
+        token = self.input_token.text.strip()
+
+        if not name or not cred or not token:
+            self.write_log("Error: All fields are required to add an account.", "error")
+            return
+
+        success, msg = self.manager.add_account(name, platform, cred, token)
+        if success:
+            self.write_log(f"Account '{name}' added successfully to platform '{platform}'.", "success")
+            self.populate_accounts()
+            # Clear inputs
+            self.input_name.text = ""
+            self.input_cred.text = ""
+            self.input_token.text = ""
+        else:
+            self.write_log(f"Failed to add account: {msg}", "error")
+
+    def delete_account(self, index):
+        success, msg = self.manager.remove_account(index)
+        if success:
+            self.write_log("Account successfully removed.", "warning")
+            self.populate_accounts()
+        else:
+            self.write_log(f"Failed to remove account: {msg}", "error")
+
+    def start_claim_process(self, instance):
+        gift_code = self.input_gift_code.text.strip()
+        platform = self.spinner_target.text
+
+        if not gift_code:
+            self.write_log("Error: Gift Code cannot be empty.", "error")
+            return
+
+        accounts = self.manager.get_accounts()
+        target_accounts = [acc for acc in accounts if acc["platform"] == platform]
+
+        if not target_accounts:
+            self.write_log(f"No active accounts found on the local system matching platform: {platform}", "warning")
+            return
+
+        self.write_log(f"Starting claim routine on {platform} for {len(target_accounts)} account(s)...", "info")
+        
+        # Run claim operation in thread to keep Kivy GUI alive and active
+        threading.Thread(target=self.run_claims, args=(target_accounts, platform, gift_code), daemon=True).start()
+
+    def run_claims(self, target_accounts, platform, gift_code):
+        claimer = self.claimers.get(platform)
+        if not claimer:
+            self.write_log(f"Unsupported claim platform: {platform}", "error")
+            return
+
+        for idx, acc in enumerate(target_accounts):
+            name = acc.get("name", f"Account #{idx+1}")
+            self.write_log(f"Processing ({idx+1}/{len(target_accounts)}): {name}...", "info")
+            try:
+                success, msg = claimer.claim_gift_code(acc, gift_code)
+                if success:
+                    self.write_log(f"[{name}] SUCCESS: {msg}", "success")
+                else:
+                    self.write_log(f"[{name}] FAILED: {msg}", "error")
+            except Exception as e:
+                self.write_log(f"[{name}] CRITICAL ERROR: {str(e)}", "error")
+
+        self.write_log("All claim activities finished for the targeted accounts.", "info")
+
+if __name__ == '__main__':
+    ClaimerApp().run()
