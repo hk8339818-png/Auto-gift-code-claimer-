@@ -1,0 +1,49 @@
+import json
+import os
+
+class AccountManager:
+    def __init__(self, filepath="accounts.json"):
+        self.filepath = filepath
+        self.accounts = []
+        self.load_accounts()
+
+    def load_accounts(self):
+        if os.path.exists(self.filepath):
+            try:
+                with open(self.filepath, "r") as f:
+                    self.accounts = json.load(f)
+            except Exception as e:
+                self.accounts = []
+        else:
+            self.accounts = []
+
+    def save_accounts(self):
+        try:
+            with open(self.filepath, "w") as f:
+                json.dump(self.accounts, f, indent=4)
+            return True
+        except Exception as e:
+            return False
+
+    def add_account(self, name, platform, phone_or_email, token):
+        if len(self.accounts) >= 50:
+            return False, "Maximum 50 accounts supported."
+        account = {
+            "name": name,
+            "platform": platform,
+            "credential": phone_or_email,
+            "token": token
+        }
+        self.accounts.append(account)
+        self.save_accounts()
+        return True, "Account added successfully."
+
+    def remove_account(self, index):
+        if 0 <= index < len(self.accounts):
+            del self.accounts[index]
+            self.save_accounts()
+            return True, "Account removed."
+        return False, "Invalid account index."
+
+    def get_accounts(self):
+        return self.accounts
